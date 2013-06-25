@@ -1,5 +1,5 @@
 
-import qualified Language.Haskell.Exts as H 
+import qualified Language.Haskell.Exts as H
 
 import System.Environment
 import System.Console.GetOpt
@@ -15,22 +15,23 @@ import System.FilePath
 import Paths_hgettext (version)
 import Data.Version (showVersion)
 
+
 data Options = Options {
-      outputFile :: String,
-      keyword :: String,
-      printVersion :: Bool
+      outputFile   :: String
+    , keyword      :: String
+    , printVersion :: Bool
     } deriving Show
 
 options :: [OptDescr (Options->Options)]
-options = 
+options =
     [
-     Option ['o'] ["output"] 
-                (ReqArg (\o opts -> opts {outputFile = o}) "FILE") 
+     Option ['o'] ["output"]
+                (ReqArg (\o opts -> opts {outputFile = o}) "FILE")
                 "write output to specified file",
-     Option ['d'] ["default-domain"] 
+     Option ['d'] ["default-domain"]
             (ReqArg (\d opts -> opts {outputFile = d ++ ".po"}) "NAME")
             "use NAME.po instead of messages.po",
-     Option ['k'] ["keyword"] 
+     Option ['k'] ["keyword"]
             (ReqArg (\d opts -> opts {keyword = d}) "WORD")
             "function name, in which wrapped searched words",
      Option [] ["version"]
@@ -42,7 +43,7 @@ options =
 defaultOptions = Options "messages.po" "__" False
 
 parseArgs :: [String] -> IO (Options, [String])
-parseArgs args = 
+parseArgs args =
     case getOpt Permute options args of
       (o, n, []) -> return (foldl (flip id) defaultOptions o, n)
       (_, _, errs) -> ioError (userError (concat errs ++ usageInfo header options))
@@ -50,22 +51,26 @@ parseArgs args =
 
 
 toTranslate :: String -> H.ParseResult H.Module -> [(Int, String)]
-toTranslate f (H.ParseOk z) = nub [ (0, s) | H.App (H.Var (H.UnQual (H.Ident x))) (H.Lit (H.String s)) <- universeBi z, x == f]
+toTranslate f (H.ParseOk z)
+  = nub [ (0, s)
+        | H.App (H.Var (H.UnQual (H.Ident x))) (H.Lit (H.String s))
+        <- universeBi z
+        , x == f ]
 toTranslate _ _ = []
 
 -- Create list of messages from a single file
 formatMessages :: String -> [(Int, String)] -> String
-formatMessages src l = concat $ map potEntry l
+formatMessages src l = concatMap potEntry l
     where potEntry (l, s) = unlines [
-                             "#: " ++ src ++ ":" ++ (show l),
-                             "msgid " ++ (show s),
+                             "#: " ++ src ++ ":" ++ show l,
+                             "msgid " ++ show s,
                              "msgstr \"\"",
                              ""
                             ]
 
 
 writePOTFile :: [String] -> String
-writePOTFile l = concat $ [potHeader] ++ l
+writePOTFile l = concat $ potHeader : l
     where potHeader = unlines ["# Translation file",
                                "",
                                "msgid \"\"",
@@ -83,15 +88,16 @@ writePOTFile l = concat $ [potHeader] ++ l
                                ""]
 
 process :: Options -> [String] -> IO ()
-process Options{printVersion = True} _ = 
-    putStrLn $ "hgettext, version " ++ (showVersion version)
+process Options{printVersion = True} _ =
+    putStrLn $ "hgettext, version " ++ showVersion version
 
 process opts fl = do
-  t <- mapM read' fl
-  writeFile (outputFile opts) $ writePOTFile $ map (\(n,c) -> formatMessages n $ toTranslate (keyword opts) c) t
-    where read' "-" = getContents >>= \c -> return ("-", H.parseFileContents c)
-          read' f = H.parseFile f >>= \m -> return (f, m)
+    t <- mapM read' fl
+    writeFile (outputFile opts) $ writePOTFile $ map format t
+    where
+        format (n, c) = formatMessages n $ toTranslate (keyword opts) c
+        read' "-" = getContents >>= \c -> return ("-", H.parseFileContents c)
+        read' f   = H.parseFile f >>= \m -> return (f, m)
 
-main = 
-    getArgs >>= parseArgs >>= uncurry process
-
+main :: IO ()
+main = getArgs >>= parseArgs >>= uncurry process

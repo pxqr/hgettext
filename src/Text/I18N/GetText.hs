@@ -43,6 +43,7 @@ foreign import ccall unsafe "libintl.h bindtextdomain" c_bindtextdomain
 foreign import ccall unsafe "libintl.h textdomain" c_textdomain
     :: CString -> IO CString
 
+
 fromCString :: CString -> IO (Maybe String)
 fromCString x | x == nullPtr = return Nothing
               | otherwise = peekCString x >>= return . Just
@@ -95,7 +96,7 @@ dGetText domainname msgid =
             c_dgettext dn' msg' >>= fromCStringDefault msgid
 
 -- | dcGetText wraps GNU dcgettext function. It works similar to
--- 'dGetText' but also takes category id
+-- 'dGetText' but also takes category id.
 dcGetText :: Maybe String       -- ^ domain name, if 'Nothing' ---
                                 -- default domain will be used
           -> Category           -- ^ locale facet
@@ -125,7 +126,7 @@ nGetText msgid msgid_plural n =
             fromCStringPluralDefault msgid msgid_plural n
 
 -- | dnGetText wraps GNU dngettext function. It works similar to 'nGetText' but
--- also takes domain name
+-- also takes domain name.
 dnGetText :: Maybe String       -- ^ domain name, if 'Nothing' ---
                                 -- default domain will be used
           -> String             -- ^ msgid in singular form
@@ -142,7 +143,7 @@ dnGetText domainname msgid msgid_plural n =
                 fromCStringPluralDefault msgid msgid_plural n
 
 -- | dcnGetText wraps GNU dcngettext function. It works similar to
--- 'dnGetText' but also takes category id
+-- 'dnGetText' but also takes category id.
 --
 dcnGetText :: Maybe String      -- ^ domain name, if 'Nothing' ---
                                 -- default domain will be used
@@ -179,7 +180,7 @@ bindTextDomain domainname dirname =
 --
 -- Throws 'IOError' if fails.
 --
-textDomain :: Maybe String      -- ^ domain name, if 'Nothing' than returns
+textDomain :: Maybe String      -- ^ domain name, if 'Nothing' then returns
                                 -- current domain name
            -> IO String         -- ^ return value
 textDomain domainname =

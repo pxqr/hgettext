@@ -83,8 +83,9 @@ import Distribution.Simple.Utils
 
 import Language.Haskell.Extension
 
-import Control.Monad
+import Control.Applicative
 import Control.Arrow (second)
+import Control.Monad
 import Data.Maybe (listToMaybe, maybeToList, fromMaybe)
 import Data.List (unfoldr,nub,null)
 import System.FilePath
@@ -105,14 +106,9 @@ gettextDefaultMain = defaultMainWithHooks $ installGetTextHooks simpleUserHooks
 installGetTextHooks :: UserHooks -- ^ initial user hooks
                     -> UserHooks -- ^ patched user hooks
 installGetTextHooks uh = uh {
-                           confHook = \a b ->
-                                      (confHook uh) a b >>=
-                                      return . updateLocalBuildInfo,
-
-                           postInst = \a b c d ->
-                                      (postInst uh) a b c d >>
-                                      installPOFiles a b c d
-                         }
+    confHook = \a b     -> updateLocalBuildInfo <$> confHook uh a b
+  , postInst = \a b c d -> postInst uh a b c d >> installPOFiles a b c d
+  }
 
 
 updateLocalBuildInfo :: LocalBuildInfo -> LocalBuildInfo
@@ -160,8 +156,9 @@ forBuildInfo l f =
 appendExtension :: [Extension] -> LocalBuildInfo -> LocalBuildInfo
 appendExtension exts l =
     forBuildInfo l updBuildInfo
-    where updBuildInfo x = x{defaultExtensions = updExts (defaultExtensions x)}
-          updExts s = nub (s ++ exts)
+  where
+    updBuildInfo x = x{defaultExtensions = updExts (defaultExtensions x)}
+    updExts s = nub (s ++ exts)
 
 appendCPPOptions :: [String] -> LocalBuildInfo -> LocalBuildInfo
 appendCPPOptions opts l =
@@ -169,7 +166,8 @@ appendCPPOptions opts l =
     where updBuildInfo x = x{cppOptions = updOpts (cppOptions x)}
           updOpts s = nub (s ++ opts)
 
-formatMacro name value = "-D" ++ name ++ "=" ++ (show value)
+formatMacro :: Show a => String -> a -> String
+formatMacro name value = "-D" ++ name ++ "=" ++ show value
 
 targetDataDir :: LocalBuildInfo -> FilePath
 targetDataDir l =
@@ -181,7 +179,8 @@ targetDataDir l =
 
 getPackageName :: LocalBuildInfo -> String
 getPackageName = fromPackageName . packageName . localPkgDescr
-    where fromPackageName (PackageName s) = s
+    where
+      fromPackageName (PackageName s) = s
 
 getCustomFields :: LocalBuildInfo -> [(String, String)]
 getCustomFields = customFieldsPD . localPkgDescr
@@ -207,5 +206,5 @@ getPoFilesDefault al = toFileList $ findInParametersDefault al "x-gettext-po-fil
           -- from Blow your mind (HaskellWiki)
           -- splits string by newline, space and comma
           split' x = concatMap lines $ concatMap words $ unfoldr
-                     (\b -> fmap (const . (second $ drop 1) . break (==',') $ b)
+                     (\b -> fmap (const . second (drop 1) . break (==',') $ b)
                             . listToMaybe $ b) x
